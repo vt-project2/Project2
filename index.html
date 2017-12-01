@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<title>Project 2: Testing a Software System</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" />
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+	<style>
+		body {
+            position: relative;
+            height: 100%;
+            max-width: 1295px;
+            font-family: 'Roboto', sans-serif, Helvetica !important;
+		}
+
+        .doc li {
+            margin: 1%;
+        }
+
+        .table {
+            max-width: 75%;
+        }
+
+        .table th {
+            font-style: italic;
+        }
+
+        .table tbody tr td {
+            padding: 12px;
+        }
+
+		.doc {
+			margin: 75px 2% 2% 2%;
+		}
+
+		.navbar {
+			background-color: #f7f7f7;
+		}
+	</style>
+</head>
+<body data-spy="scroll" data-target="#navbar" data-offset="70">
+
+
+	<nav id="navbar" class="navbar navbar-light navbar-fixed-top">
+		<ul class="nav nav-pills navbar-nav" role="tablist">
+		  <li>
+			<a href="#TestScope">Test Scope</a>
+		  </li>
+		  <li>
+			<a href="#TestPlan">Test Plan</a>
+		  </li>
+		  <li>
+			<a href="#TestProcedure">Test Procedure</a>
+		  </li>
+		  <li>
+			<a href="#ValidationTests">Validation Tests</a>
+		  </li>
+		  <li>
+			<a href="#TraceabilityMatrix">Traceability Matrix</a>
+		  </li>
+		</ul>
+	</nav>
+	<section class="doc">
+		<section>
+			<h1 id="TestScope">1. Test Scope</h1>
+            <p>This document describes the test specification for the Movie Theater Reservation System designed by Andres Pico (andresjp) and Radha Krishnan Vinayagam (vradha).</p>
+            <p>This specification will test the functional requirements revolving around the ability to create user accounts, check seating statuses, and manage reservations. The specification will also test non-functional requirements concerning the client interface, protocol, and performance of the application.</p>
+            <p>Note that this document will not be testing non-functional requirements concerning the modifiability or the maintainability of the system during integration or verification testing.</p>
+        </section>
+		
+		<section>
+			<h1 id="TestPlan">2. Test Plan</h1>
+            <p>Integration testing will follow a bottom up approach and proceed against six separate builds of the system. Each one will test a major subsection of functionality. The first build will test the caching functionality, the second the pub/sub functionality, the third the booking functionality, the fourth the user account functionality, the fifth the status functionality, and the sixth will test the load balancing functionality.</p>
+            <p>The caching build will consist of the cache component and the database. Testing this build will provide initial assurance of the system’s ability to support all non-functional requirements as well as all functional requirements with the exception of requirement five. Requirement five is not validated in this build since it doesn’t make use of the cache component.</p>
+            <p>The pub/sub build will consist of the pub/sub component and the database. In a manner similar to the caching build, this build will provide initial assurance of the system’s ability to support all non-functional requirements as well as functional requirement five. Requirement five is the only functional requirement that uses the pub/sub component.</p>
+            <p>The booking module build will consist of the the booking module components as well as the already tested cache and database components. This build will test functional requirements six, seven, and eight as well as all five non-functional performance requirements.</p>
+            <p>The user module build will consist of the account module as well as the already tested cache and database components. This build will test functional requirements one, two, three, and four as well as all five non-functional requirements.</p>
+            <p>The status module build will consist of the status module as well as the already tested pub/sub and database components. This build will test functional requirement 5 as well as all five non-functional requirements.</p>
+            <p>The load balancer build will consist of the the load balancer component as well as the already tested subordinate components. This build will test all functional requirements as well as all five non-functional requirements.</p>
+            <p>Conducting integration testing in this sequence will provide optimal assurance that the system is integrated properly, since it starts with the lowest level components and integrates upwards only after verifying the correctness of the lower levels. This sequence is also ideal because it isolates the scope of the search area when problems do arise.</p>
+        </section>
+		
+		<section>
+			<h1 id="TestProcedure">3. Test Procedure for Build</h1>
+            <section>
+			    <h1 id="CachingBuild">3.1 Caching Build</h1>
+                <p>The purpose of the caching build is to test the constraint that data should be read from the database only when it does not already appear in the cache. The testing of this build supports the verification of all functional requirements with the exception of requirement number five. This is because each functional requirement will at some point need to read data from the database. Functional requirement five is the one exception to this rule. Although requirement five also reads data from the database, its data must never be cached since it’s expected that it will always be up-to-date. This build will also test non-functional requirements two and three.</p>
+                <p>A driver will be written that makes calls to the cache module when data needs to be read from or written to the database.</p>
+                <p>The following tests will be performed:</p>
+                <ul>
+                    <li><b>(3.1.1)</b> Read non-existent data from cache - the cache should be unable to find the requested data and should therefore delegate the call to the underlying database. The database should be unable to find the requested data and should return a suitable error message to the cache, which then passes that message back up to the driver.</li>
+                    <li><b>(3.1.2)</b> Read existing data not in cache - the cache should be unable to find the requested data and should therefore delegate the call to the underlying database. The database should find the data and return it to the cache. The cache should store the requested data in its data structure before passing the data back up to the driver.</li>
+                    <li><b>(3.1.3)</b> Read existing data already found in the cache - the cache should find the requested data in its data structure and return it to the driver without making a request to the database.</li>
+                    <li><b>(3.1.4)</b> Create, update, or delete data in the database - the cache should delegate the call to the underlying database. The results of the database update should then be propagated to the cache. Specifically, newly created database rows should find their data placed in the cache. Updated rows should find their corresponding data updated in the cache. If updated rows aren’t currently represented in the cache then they should be added. Deleted rows should have their corresponding data deleted from the cache.</li>
+                    <li><b>(3.1.5)</b> Create 1000 random, concurrent, read/write requests - the driver should create 1000 concurrent reads and writes representing a sampling of cached and non-cached data. The response time for each request should be measured to ensure that it is within acceptable constraints.</li>
+                </ul>
+            </section>
+            <section>
+                <h1 id="PubSubBuild">3.2 Pub/Sub Build</h1>
+                <p>The purpose of the pub/sub build is to test the ability of the system to handle asynchronous requests to the database for the latest status information. The testing of this build supports the verification of functional requirement five. None of the other functional requirements are tested here since they do not require the capabilities provided by the pub/sub component. This build will also test non-functional requirements two and three.</p>
+                <p>A driver will be written that makes calls to the pub/sub module when data needs to be read from the database.</p>
+                <p>The following tests will be performed:</p>
+                <ul>
+                    <li><b>(3.2.1)</b> Send a status read message for a specific account to the pub/sub component - the pub/sub component should accept the request asynchronously and allow the driver to continue processing other requests.</li>
+                    <li><b>(3.2.2)</b> Send 1000 concurrent status read messages for different accounts to the pub/sub component - the pub/sub component should process the requests asynchronously and return the resulting status to the driver. The driver will measure the response time for each request to ensure that it is within the acceptable limits.</li>
+                </ul>
+            </section>
+            <section>
+                <h1 id="BookingBuild">3.3 Booking Build</h1>
+                <p>The purpose of the booking build is to test the ability of the system to allow users to create, update, or cancel existing reservations. The testing of this build supports the verification of functional requirements six, seven, and eight. This build will also test non-functional requirements one, two, and three.</p>
+                <p>A driver will be written that makes HTTP calls to the booking module when a reservation needs to created, updated, or deleted.</p>
+                <p>The following tests will be performed:</p>
+                <ul>
+                    <li><b>(3.3.1)</b> Create a reservation - the booking component should be able to create a reservation for a user. A HTTP request will be sent by the driver to create a new reservation for a given user. The component should successfully create the reservation.</li>
+                    <li><b>(3.3.2)</b> Update a reservation - the booking component should be able to update an existing reservation for a user. A HTTP request will be sent by the driver to update an existing reservation for a given user. The component should successfully update the reservation. In case the identified reservation cannot be found an error HTTP response is returned to the driver.</li>
+                    <li><b>(3.3.3)</b> Delete a reservation - the booking component should be able to delete an existing reservation for a user. A HTTP request will be sent by the driver to delete an existing reservation for a given user. The component should successfully delete the reservation. In case the identified reservation cannot be found an error HTTP response is returned to the driver.</li>
+                    <li><b>(3.3.4)</b> Send 1000 concurrent reservation create, update, and delete requests for different accounts to the booking component. The driver will measure the response time for each request to ensure that it is within the acceptable limits.</li>
+                </ul>
+            </section>
+            <section>
+                <h1 id="UserBuild">3.4 User Build</h1>
+                <p>The purpose of the user build is to test the ability of the system to allow users to create, update, or delete their user accounts. The testing of this build supports the verification of functional requirements one, two, and three. This build will also test non-functional requirements one, two, and three.</p>
+                <p>A driver will be written that makes HTTP calls to the user module when an account needs to be created, updated, or deleted.</p>
+                <p>The following tests will be performed:</p>
+                <ul>
+                    <li><b>(3.4.1)</b> Create a user - the user component should be able to create an account for a user. A HTTP request will be sent by the driver to create a new account for a given user. The component should successfully create the account.</li>
+                    <li><b>(3.4.2)</b> Update an account - the booking component should be able to update an existing account for a user. A HTTP request will be sent by the driver to update an existing account for a given user. The component should successfully update the account. In case the identified account cannot be found an error HTTP response is returned to the driver.</li>
+                    <li><b>(3.4.3)</b> Delete an account - the user component should be able to delete an existing account for a user. A HTTP request will be sent by the driver to delete an existing account for a given user. The component should successfully delete the account. In case the identified account cannot be found an error HTTP response is returned to the driver.</li>
+                    <li><b>(3.4.4)</b> Send 1000 concurrent reservation create, update, and delete requests for different accounts to the user component. The driver will measure the response time for each request to ensure that it is within the acceptable limits.</li>
+                </ul>
+            </section>
+            <section>
+                <h1 id="StatusBuild">3.5 Status Build</h1>
+                <p>The purpose of the status build is to test the ability of the system to allow users to check on the current seating status for a given movie. The testing of this build supports the verification of functional requirement five. This build will also test non-functional requirements one, two, and three.</p>
+                <p>A driver will be written that makes HTTP calls to the status module when a seating status is requested.</p>
+                <p>The following tests will be performed:</p>
+                <ul>
+                    <li><b>(3.5.1)</b> Request seating status - the status module should be able to get the current seating status for a given movie. A HTTP request will be sent by the driver to request the current seating status for a movie. In case the identified movie cannot be found an error HTTP response is returned to the driver.</li>
+                    <li><b>(3.5.2)</b> Send 1000 concurrent seating status requests. The driver will measure the response time for each request to ensure that it is within the acceptable limits.</li>
+                </ul>
+            </section>
+            <section>
+                <h1 id="LoadBalancingBuild">3.6 Load Balancing Build</h1>
+                <p>The purpose of the load balancing build is to test the ability of the system to evenly route requests across the various application servers. The testing of this build supports the verification of all the functional requirements. This build will also test non-functional requirements one, two, and three.</p>
+                <p>A driver will be written that makes HTTP calls to the load balancing module.</p>
+                <p>The following tests will be performed:</p>
+                <ul>
+                    <li><b>(3.6.1)</b> Send 1000 concurrent and random booking requests - the driver will send 1000 concurrent booking requests that randomly request CRUD operations on the underlying data store. Log analysis will be performed on the booking application servers to ensure that load was evenly distributed.</li>
+                    <li><b>(3.6.2)</b> Send 1000 concurrent and random user requests - the driver will send 1000 concurrent user requests that randomly request CRUD operations on the underlying data store. Log analysis will be performed on the user application servers to ensure that load was evenly distributed.</li>
+                    <li><b>(3.6.3)</b> Send 5000 concurrent status read requests - the driver will send 5000 concurrent status read requests that return the current state of the seating for a given movie. Log analysis will be performed on the status application servers to ensure that load was evenly distributed.</li>
+                </ul>
+            </section>
+		</section>
+		
+		<section>
+			<h1 id="ValidationTests">4. Validation Tests</h1>
+            <p>The purpose of the validation tests is to ensure that all high level requirements for the system are met. The validation tests will cover each functional and non-functional requirement listed below. Each test will be performed by the user using a mobile and desktop system.</p>
+            <p>The following tests will be performed:</p>
+            <section>
+                <h1 id="FunctionalRequirements">4.1 Functional Requirements</h1>
+                <section>
+                    <p><u>Functional Requirement 1</u> - User shall be able to register into the system by creating at most one account per email address and providing personal information</p>
+                    <ul>
+                        <li><b>(4.1.1)</b> Create a new account using new email address - The user will click on the New Account link, which will take them to the account signup page. The user enters an email address that is unassociated with any current account in the system. The user also enters a valid password and clicks the Create Account button. A new page loads informing the user that their new user account has been created.</li>
+                        <li><b>(4.1.2)</b> Create a new account using existing email address - The user will click on the New Account link, which will take them to the account signup page. The user enters an existing email address that is already associated with an account in the system. The user enters a valid password and clicks the Create Account button. A new page loads informing them that an account could not be created because the given email address already exists in the system.</li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Functional Requirement 2</u> - User shall be able to update account information given correct credentials are provided</p>
+                    <ul>
+                        <li><b>(4.1.3)</b> User attempts login using correct credentials - The user will enter a valid email address and password. The user will click on the login button. A new page loads presenting to the user a dashboard for logged in users. </li>
+                        <li><b>(4.1.4</b> Logged in user updates account information - An authenticated user from the logged in dashboard will navigate to their account details page. The user will click the edit button, change any of their account details information and then click save. Upon clicking save the information is validated and the account details for the authenticated user is updated. </li>
+                        <li><b>(4.1.5</b> User attempts login using incorrect credentials - The user enters an incorrect email address or password. The user clicks login, the user is presented on the login page with an error message stating that an incorrect email address or password was entered. The same error message is present whether an incorrect email address or password is entered.</li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Functional Requirement 3</u> - User shall be able to delete system account</p>
+                    <ul>
+                        <li><b>(4.1.6)</b> Logged in user attempts to delete account - An authenticated user from the logged in dashboard will navigate to their account details page. The user will click the delete button, the account for the authenticated user is deleted and the user is redirected to the landing page as an unauthenticated user.</li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Functional Requirement 4</u> - User shall be able to lookup previous activity related to account</p>
+                    <ul>
+                        <li><b>(4.1.7)</b> Logged in user views previous account activity - An authenticated user from the logged in dashboard will navigate to their account history page. The user is able to view their previous account activity. </li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Functional Requirement 5</u> - User shall be able to retrieve movie’s seating status</p>
+                    <ul>
+                        <li><b>(4.1.8)</b> Non-logged in user can view movie’s seating status - An unauthenticated user from the landing page will navigate to a particular movie details page. The user will click on a seating status button to view the seating status of the movie.</li>
+                        <li><b>(4.1.9</b> Logged in user can view movie’s seating status - An authenticated user from the logged in dashboard will navigate to a particular movie details page. The user will click on a seating status button to view the seating status of the movie.</li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Functional Requirement 6</u> - User shall be able to reserve tickets</p>
+                    <ul>
+                        <li><b>(4.1.10)</b> Logged in user can reserve movie tickets - An authenticated user from the logged in dashboard will navigate to a particular movie details page. The user will click on the reserve movie ticket button. The user will select the quantity of tickets to reserve. The user will click the reserve now button. The user is presented confirmation of the reservation number(s) for the ticket(s).</li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Functional Requirement 7</u> - User shall be able to cancel existing reservation</p>
+                    <ul>
+                        <li><b>(4.1.11)</b> Logged in user can cancel existing reservation - An authenticated user from the logged in dashboard will navigate to the account history page. The user will select a reservation for a movie showing that still hasn’t passed. The user is presented details of the reservation. The user will select cancel reservation and the reservation will be cancelled.</li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Functional Requirement 8</u> - User shall be able to change existing reservation</p>
+                    <ul>
+                        <li><b>(4.1.12)</b> Logged in user can change existing reservation - An authenticated user from the logged in dashboard will navigate to the account history page. The user will select a reservation for a movie showing that still hasn’t passed. The user is presented details of the reservation. The user can edit reservation details such as quantity or choose to delete the reservation.</li>
+                    </ul>
+                </section>
+            </section>
+            <section>
+                <h1 id="NonFunctionalRequirements">4.2 Non-functional Requirements</h1>
+                <section>
+                    <p><u>Non-functional Requirement 1</u> - The system shall be accessed over HTTP connections</p>
+                    <ul>
+                        <li><b>(4.2.1)</b> The system can be navigated via web browser - A user can open a web browser and navigate to the URL and be presented with the landing page for the Movie Theater Reservation System. </li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Non-functional Requirement 2</u> - High Availability of system</p>
+                    <ul>
+                        <li><b>(4.2.2)</b> A user is able to access the system during any time of the night or day - A user throughout any period of the day can open a web browser and be presented with the landing page for the Movie Theater Reservation System. </li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Non-functional Requirement 3</u> - System shall be able to handle large amount of connection requests</p>
+                    <ul>
+                        <li><b>(4.2.3)</b> Multiple users are able to navigate the system - 1,000 users are able to access and navigate the Movie Theater Reservation System simultaneously with very low latency. </li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Non-functional Requirement 4</u> - System shall be accessed through most commonly used web browsers</p>
+                    <ul>
+                        <li><b>(4.2.4)</b> System can be navigated via Chrome, Firefox, and Internet Explorer - A user can open Chrome, Firefox or Internet Explorer and encounter the same user experience across all supported web browsers.</li>
+                    </ul>
+                </section>
+                <section>
+                    <p><u>Non-functional Requirement 5</u> - System shall be accessed through both mobile app and computers</p>
+                    <ul>
+                        <li><b>(4.2.5)</b> System can be navigated via mobile - A user can open a mobile web browser and navigate to the landing page of the Movie Theater Reservation System. </li>
+                        <li><b>(4.2.6)</b> System can be navigated via desktop - A user can open a web browser on a desktop and navigate to the landing page of the Movie Theater Reservation System.</li>
+                    </ul>
+                </section>
+            </section>
+		</section>
+		
+		<section>
+			<h1 id="TraceabilityMatrix">Traceability Matrix</h1>
+            <p>The following functional and non-functional requirements will be tested.</p>
+            <h2 id="traceability_matrix">2.7 Traceability Matrix</h2>
+            <table class="table table-striped table-responsive">
+                <thead>
+                    <tr>
+                        <th style="width: 170px;">Functional Reqs.</th>
+                        <th style="width: 525px;">Functional Requirement Description</th>
+                        <th>Validation Tests</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>User shall be able to register into the system by creating at most one account per email address and providing personal information</td>
+                        <td>4.1.1, 4.1.2</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>User shall be able to update account information given correct credentials are provided</td>
+                        <td>4.1.3, 4.1.4, 4.1.5</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>User shall be able to delete system account</td>
+                        <td>4.1.6</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>User shall be able to lookup previous activity related to account</td>
+                        <td>4.1.7</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>User shall be able to retrieve movie’s seating status</td>
+                        <td>4.1.8, 4.1.9</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>User shall be able to reserve tickets</td>
+                        <td>4.1.10</td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td>User shall be able to cancel existing reservation</td>
+                        <td>4.1.11</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td>User shall be able to change existing reservation</td>
+                        <td>4.1.12</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <table class="table table-striped table-responsive">
+                <thead>
+                    <tr>
+                        <th style="width: 170px;">Non-Functional Reqs.</th>
+                        <th style="width: 525px;">Non-Functional Requirement Description</th>
+                        <th>Validation Tests</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>The system shall be accessed over HTTP connections</td>
+                        <td>4.2.1</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>High Availability of system</td>
+                        <td>4.2.2</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>System shall be able to handle large amount of connection requests</td>
+                        <td>4.2.3</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>System shall be accessed through most commonly used web browsers</td>
+                        <td>4.2.4</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>System shall be accessed through both mobile app and computers</td>
+                        <td>4.2.5, 4.2.6</td>
+                    </tr>
+                </tbody>
+            </table>
+		</section>
+	</section>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+	<script>
+        $(function() {
+            var offset = 55;
+
+            $('body').scrollspy({
+                target: '#navbar'
+            });
+
+            $('.navbar li a').click(function (event) {
+                event.preventDefault();
+                $($(this).attr('href'))[0].scrollIntoView();
+                scrollBy(0, -offset);
+            });
+        });
+	</script>
+</body>
+</html>
